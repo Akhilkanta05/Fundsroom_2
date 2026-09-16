@@ -1,0 +1,492 @@
+{
+  "info": {
+    "_postman_id": "fundsroom-erp-api-collection",
+    "name": "Fundsroom Industrial ERP API",
+    "description": "Complete Postman collection for the Technical Case Study (PERN Stack) covering Enquiry -> Quotation -> Sales Order -> Reservation -> Dispatch",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "salesToken", "value": "", "type": "string" },
+    { "key": "customerId", "value": "1", "type": "string" },
+    { "key": "enquiryId", "value": "1", "type": "string" },
+    { "key": "quotationId", "value": "1", "type": "string" },
+    { "key": "salesOrderId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Admin Login returns 200 and token', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('adminToken', data.token);",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@erp.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login as Sales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Sales Login returns 200 and token', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('salesToken', data.token);",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sales@erp.com\",\n  \"password\": \"Sales@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Current user profile retrieved', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.user.email).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Customers & Products Master",
+      "item": [
+        {
+          "name": "List Customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Customers list returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list).to.be.an('array');",
+                  "    if (list.length > 0) { pm.collectionVariables.set('customerId', String(list[0].id)); }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Customer created successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.company_name).to.be.a('string');",
+                  "    pm.collectionVariables.set('customerId', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"Apex Engineering Ltd.\",\n  \"contact_person\": \"Rahul Sharma\",\n  \"mobile\": \"+91 91234 56789\",\n  \"email\": \"rahul@apexeng.com\",\n  \"city\": \"Bengaluru\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+          }
+        },
+        {
+          "name": "List Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Products master list returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list.length).to.be.at.least(6);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Get Inventory Availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Inventory availability computed', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list).to.be.an('array');",
+                  "    list.forEach(function(i) {",
+                  "        pm.expect(i.available_quantity).to.equal(i.physical_quantity - i.reserved_quantity - i.damaged_quantity);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/inventory", "host": ["{{baseUrl}}"], "path": ["inventory"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Customer Enquiries",
+      "item": [
+        {
+          "name": "List Enquiries",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Enquiries list retrieved', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/enquiries", "host": ["{{baseUrl}}"], "path": ["enquiries"] }
+          }
+        },
+        {
+          "name": "Create Enquiry (Multi-Product)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Enquiry created with multiple items', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.enquiry_number).to.match(/^ENQ-/);",
+                  "    pm.collectionVariables.set('enquiryId', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": {{customerId}},\n  \"required_date\": \"2026-10-15\",\n  \"notes\": \"High priority project expansion\",\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 15 },\n    { \"product_id\": 3, \"quantity\": 10 }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/enquiries", "host": ["{{baseUrl}}"], "path": ["enquiries"] }
+          }
+        },
+        {
+          "name": "Get Enquiry Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Enquiry details retrieved', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.items.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/enquiries/{{enquiryId}}", "host": ["{{baseUrl}}"], "path": ["enquiries", "{{enquiryId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Quotations",
+      "item": [
+        {
+          "name": "Create Quotation (Auto-calculated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Quotation created with validated calculations', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.quotation_number).to.match(/^QT-/);",
+                  "    pm.expect(data.grand_total).to.be.greaterThan(0);",
+                  "    pm.collectionVariables.set('quotationId', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enquiry_id\": {{enquiryId}},\n  \"valid_until\": \"2026-11-30\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 10,\n      \"unit_price\": 4500,\n      \"discount_percent\": 5,\n      \"gst_percent\": 18\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/quotations", "host": ["{{baseUrl}}"], "path": ["quotations"] }
+          }
+        },
+        {
+          "name": "Update Quotation Status (Accept)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Quotation accepted', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.equal('ACCEPTED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/quotations/{{quotationId}}/status", "host": ["{{baseUrl}}"], "path": ["quotations", "{{quotationId}}", "status"] }
+          }
+        },
+        {
+          "name": "Convert Accepted Quotation to Sales Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Quotation converted to Sales Order', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.sales_order.order_number).to.match(/^SO-/);",
+                  "    pm.collectionVariables.set('salesOrderId', String(data.sales_order.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/quotations/{{quotationId}}/convert", "host": ["{{baseUrl}}"], "path": ["quotations", "{{quotationId}}", "convert"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Sales Orders, Reservation & Dispatch",
+      "item": [
+        {
+          "name": "List Sales Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Sales orders list retrieved', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/sales-orders", "host": ["{{baseUrl}}"], "path": ["sales-orders"] }
+          }
+        },
+        {
+          "name": "Confirm Sales Order (Admin Only - Concurrency Stock Reservation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order confirmed and stock reserved by Admin', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.sales_order.status).to.equal('CONFIRMED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/sales-orders/{{salesOrderId}}/confirm", "host": ["{{baseUrl}}"], "path": ["sales-orders", "{{salesOrderId}}", "confirm"] }
+          }
+        },
+        {
+          "name": "Process Dispatch (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order dispatched and stock deducted', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.dispatch.dispatch_number).to.match(/^DSP-/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicle_number\": \"MH-12-AB-9876\",\n  \"driver_name\": \"Ramesh Patil\",\n  \"notes\": \"All containers verified and dispatched\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sales-orders/{{salesOrderId}}/dispatch", "host": ["{{baseUrl}}"], "path": ["sales-orders", "{{salesOrderId}}", "dispatch"] }
+          }
+        },
+        {
+          "name": "List Dispatches",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Dispatches list retrieved', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var list = pm.response.json();",
+                  "    pm.expect(list.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/dispatches", "host": ["{{baseUrl}}"], "path": ["dispatches"] }
+          }
+        }
+      ]
+    }
+  ]
+}

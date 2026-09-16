@@ -1,0 +1,31 @@
+{
+  "name": "fundsroom-erp",
+  "version": "1.0.0",
+  "description": "Industrial ERP PERN Application - Customer Enquiry to Dispatch Workflow",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "seed": "npm --prefix backend run seed",
+    "migrate": "npm --prefix backend run migrate",
+    "start:backend": "npm --prefix backend start",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test",
+    "test:concurrency": "npm --prefix backend run test:concurrency",
+    "test:postman": "npx -y newman run postman/fundsroom_erp_api.postman_collection.json"
+  },
+  "keywords": [
+    "pern",
+    "erp",
+    "manufacturing",
+    "inventory",
+    "workflow",
+    "postgresql",
+    "express",
+    "react",
+    "node"
+  ],
+  "author": "",
+  "license": "ISC"
+}

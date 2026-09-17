@@ -16,6 +16,7 @@ export default function App() {
   // Workflow navigation states
   const [targetEnquiryId, setTargetEnquiryId] = useState(null);
   const [targetOrderId, setTargetOrderId] = useState(null);
+  const [targetDispatchId, setTargetDispatchId] = useState(null);
 
   if (!user) {
     return <LoginPage />;
@@ -29,6 +30,11 @@ export default function App() {
   const handleNavigateToSalesOrder = (orderId) => {
     setTargetOrderId(orderId);
     setActiveTab('sales-orders');
+  };
+
+  const handleNavigateToDispatch = (dispatchId) => {
+    setTargetDispatchId(dispatchId);
+    setActiveTab('dispatches');
   };
 
   return (
@@ -48,15 +54,22 @@ export default function App() {
           <QuotationsPage
             preselectedEnquiryId={targetEnquiryId}
             onNavigateToSalesOrder={handleNavigateToSalesOrder}
+            onClearTargetEnquiry={() => setTargetEnquiryId(null)}
           />
         )}
 
         {activeTab === 'sales-orders' && (
-          <SalesOrdersPage targetOrderId={targetOrderId} />
+          <SalesOrdersPage
+            targetOrderId={targetOrderId}
+            onNavigateToDispatch={handleNavigateToDispatch}
+          />
         )}
 
         {activeTab === 'dispatches' && (
-          <DispatchesPage />
+          <DispatchesPage
+            targetDispatchId={targetDispatchId}
+            onClearTargetDispatch={() => setTargetDispatchId(null)}
+          />
         )}
       </main>
 

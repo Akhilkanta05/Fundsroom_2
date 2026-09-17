@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { downloadQuotationDocument, printQuotationDocument } from '../utils/quotationDocument';
 import { 
   Receipt, 
   Plus, 
@@ -13,10 +14,13 @@ import {
   Percent, 
   AlertCircle,
   FileCheck2,
-  Trash2
+  Trash2,
+  Download,
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 
-export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSalesOrder }) {
+export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSalesOrder, onClearTargetEnquiry }) {
   const { isSales, isAdmin } = useAuth();
   const [quotations, setQuotations] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
@@ -26,9 +30,11 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
 
   // New Quotation Modal State
   const [showModal, setShowModal] = useState(false);
-  const [selectedEnquiryId, setSelectedEnquiryId] = useState(preselectedEnquiryId || '');
+  const [selectedEnquiryId, setSelectedEnquiryId] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [items, setItems] = useState([]);
+  const [modalError, setModalError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Detail Modal State
   const [activeQuotation, setActiveQuotation] = useState(null);
@@ -57,7 +63,8 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
   };
 
   const openModalWithEnquiry = async (enqId, enqList = enquiries, prodList = products) => {
-    setSelectedEnquiryId(enqId);
+    setSelectedEnquiryId(String(enqId));
+    setModalError(null);
     setShowModal(true);
     try {
       const enqDetails = await api.getEnquiry(enqId);
@@ -69,13 +76,23 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
             product_id: it.product_id,
             product_name: it.product_name,
             unit: it.unit,
-            quantity: it.quantity,
+            quantity: Number(it.quantity) || 1,
             unit_price: price,
             discount_percent: 0,
             gst_percent: 18,
           };
         });
         setItems(prepItems);
+      } else if (prodList.length > 0) {
+        setItems([{
+          product_id: prodList[0].id,
+          product_name: prodList[0].product_name,
+          unit: prodList[0].unit,
+          quantity: 10,
+          unit_price: Number(prodList[0].base_price),
+          discount_percent: 0,
+          gst_percent: 18,
+        }]);
       }
     } catch (err) {
       console.error('Error preloading enquiry items:', err);
@@ -86,10 +103,25 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
     loadData();
   }, [preselectedEnquiryId]);
 
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setItems([]);
+    setSelectedEnquiryId('');
+    setValidUntil('');
+    setModalError(null);
+    if (onClearTargetEnquiry) {
+      onClearTargetEnquiry();
+    }
+  };
+
   const handleEnquirySelect = async (e) => {
     const enqId = e.target.value;
     setSelectedEnquiryId(enqId);
-    if (!enqId) return;
+    setModalError(null);
+    if (!enqId) {
+      setItems([]);
+      return;
+    }
     try {
       const enqDetails = await api.getEnquiry(enqId);
       if (enqDetails.items && enqDetails.items.length > 0) {
@@ -100,7 +132,7 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
             product_id: it.product_id,
             product_name: it.product_name,
             unit: it.unit,
-            quantity: it.quantity,
+            quantity: Number(it.quantity) || 1,
             unit_price: price,
             discount_percent: 0,
             gst_percent: 18,
@@ -109,8 +141,42 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
         setItems(prepItems);
       }
     } catch (err) {
-      alert('Could not fetch enquiry: ' + err.message);
+      setModalError('Could not fetch enquiry: ' + err.message);
     }
+  };
+
+  const handleAddItemRow = () => {
+    const firstProd = products[0];
+    setItems([
+      ...items,
+      {
+        product_id: firstProd ? firstProd.id : 1,
+        product_name: firstProd ? firstProd.product_name : 'Item',
+        unit: firstProd ? firstProd.unit : 'PCS',
+        quantity: 1,
+        unit_price: firstProd ? Number(firstProd.base_price) : 1000,
+        discount_percent: 0,
+        gst_percent: 18,
+      },
+    ]);
+  };
+
+  const handleRemoveItemRow = (idx) => {
+    if (items.length <= 1) return;
+    setItems(items.filter((_, i) => i !== idx));
+  };
+
+  const handleProductChange = (index, productId) => {
+    const pId = parseInt(productId, 10);
+    const matched = products.find((p) => p.id === pId);
+    const updated = [...items];
+    updated[index].product_id = pId;
+    if (matched) {
+      updated[index].product_name = matched.product_name;
+      updated[index].unit = matched.unit;
+      updated[index].unit_price = Number(matched.base_price);
+    }
+    setItems(updated);
   };
 
   const handleItemFieldChange = (index, field, value) => {
@@ -119,12 +185,18 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
     setItems(updated);
   };
 
-  // Real-time calculation preview (verified by backend upon creation)
+  // Safe number parsing to prevent NaN bugs
+  const safeNum = (val, fallback = 0) => {
+    if (val === '' || val === null || val === undefined) return fallback;
+    const n = parseFloat(val);
+    return isNaN(n) ? fallback : n;
+  };
+
   const calculatePreviewLine = (item) => {
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unit_price) || 0;
-    const disc = parseFloat(item.discount_percent) || 0;
-    const gst = parseFloat(item.gst_percent) || 0;
+    const qty = safeNum(item.quantity, 1);
+    const price = safeNum(item.unit_price, 0);
+    const disc = Math.min(100, Math.max(0, safeNum(item.discount_percent, 0)));
+    const gst = Math.min(100, Math.max(0, safeNum(item.gst_percent, 18)));
 
     const base = qty * price;
     const discounted = base - base * (disc / 100);
@@ -136,26 +208,39 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
 
   const handleCreateQuotation = async (e) => {
     e.preventDefault();
+    setModalError(null);
+
+    if (!selectedEnquiryId) {
+      setModalError('Please select a customer enquiry reference.');
+      return;
+    }
+
+    if (items.length === 0) {
+      setModalError('At least one product item is required for the quotation.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const payload = {
         enquiry_id: parseInt(selectedEnquiryId, 10),
         valid_until: validUntil || null,
         items: items.map((it) => ({
           product_id: parseInt(it.product_id, 10),
-          quantity: parseFloat(it.quantity),
-          unit_price: parseFloat(it.unit_price),
-          discount_percent: parseFloat(it.discount_percent || 0),
-          gst_percent: parseFloat(it.gst_percent || 18),
+          quantity: safeNum(it.quantity, 1),
+          unit_price: safeNum(it.unit_price, 0),
+          discount_percent: safeNum(it.discount_percent, 0),
+          gst_percent: safeNum(it.gst_percent, 18),
         })),
       };
 
       await api.createQuotation(payload);
-      setShowModal(false);
-      setItems([]);
-      setSelectedEnquiryId('');
+      handleCloseModal();
       loadData();
     } catch (err) {
-      alert('Failed to create quotation: ' + err.message);
+      setModalError(err.message || 'Failed to create quotation');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -194,6 +279,36 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
     }
   };
 
+  // Download Handler for Quotation
+  const handleDownloadQuotation = async (quoteOrId) => {
+    try {
+      let quote = quoteOrId;
+      if (typeof quoteOrId === 'number' || typeof quoteOrId === 'string') {
+        quote = await api.getQuotation(quoteOrId);
+      } else if (!quote.items) {
+        quote = await api.getQuotation(quote.id);
+      }
+      downloadQuotationDocument(quote);
+    } catch (err) {
+      alert('Could not download quotation: ' + err.message);
+    }
+  };
+
+  // Direct In-Page Print / PDF Handler (No blank windows)
+  const handlePrintQuotation = async (quoteOrId) => {
+    try {
+      let quote = quoteOrId;
+      if (typeof quoteOrId === 'number' || typeof quoteOrId === 'string') {
+        quote = await api.getQuotation(quoteOrId);
+      } else if (!quote.items) {
+        quote = await api.getQuotation(quote.id);
+      }
+      printQuotationDocument(quote);
+    } catch (err) {
+      alert('Could not print quotation: ' + err.message);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'DRAFT': return 'badge-status-draft';
@@ -219,6 +334,7 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
           onClick={() => {
             setSelectedEnquiryId('');
             setItems([]);
+            setModalError(null);
             setShowModal(true);
           }}
         >
@@ -241,6 +357,10 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
             <Receipt size={18} color="#2563eb" />
             All Quotations ({quotations.length})
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
+            <RefreshCw size={13} className={loading ? 'spin' : ''} />
+            Refresh
+          </button>
         </div>
 
         <div className="table-responsive">
@@ -253,7 +373,7 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                 <th>Grand Total (₹)</th>
                 <th>Status</th>
                 <th>Sales Order</th>
-                <th>Actions</th>
+                <th style={{ minWidth: '270px', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -299,8 +419,8 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                       <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Not converted</span>
                     )}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div className="table-actions">
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => viewQuotationDetails(q.id)}
@@ -308,6 +428,17 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                       >
                         <Eye size={13} />
                         View
+                      </button>
+
+                      {/* Download Quotation Feature */}
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDownloadQuotation(q)}
+                        title="Download / Print Commercial Quotation Document"
+                        style={{ color: q.status === 'ACCEPTED' ? '#15803d' : '#0369a1', borderColor: q.status === 'ACCEPTED' ? '#86efac' : '#bae6fd' }}
+                      >
+                        <Download size={13} />
+                        Download
                       </button>
 
                       {q.status === 'DRAFT' && (
@@ -363,18 +494,25 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
 
       {/* CREATE QUOTATION MODAL */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" style={{ maxWidth: '850px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" style={{ maxWidth: '880px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Generate Commercial Quotation</h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)}>
+              <button className="btn-icon" onClick={handleCloseModal} title="Close modal">
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleCreateQuotation}>
               <div className="modal-body">
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                {modalError && (
+                  <div className="alert alert-danger">
+                    <AlertCircle size={16} />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div className="form-group">
                     <label className="form-label">Customer Enquiry Reference *</label>
                     <select
@@ -404,26 +542,37 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                 </div>
 
                 {/* Line Items Pricing Table */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label className="form-label" style={{ fontWeight: 700, marginBottom: '0.75rem' }}>
-                    Pricing Breakdown (Validated & Calculated on Backend)
-                  </label>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>
+                      Pricing Breakdown (Validated on Backend)
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleAddItemRow}
+                      title="Add another product line item"
+                    >
+                      <Plus size={14} /> Add Product Line
+                    </button>
+                  </div>
 
                   {items.length === 0 ? (
                     <div style={{ padding: '1.5rem', background: '#f8fafc', textAlign: 'center', color: '#64748b', borderRadius: '8px' }}>
-                      Please select an Enquiry above to populate products and quantities.
+                      Please select an Enquiry above or click "+ Add Product Line" to add items.
                     </div>
                   ) : (
                     <div className="table-responsive">
                       <table className="table" style={{ fontSize: '0.8rem' }}>
                         <thead>
                           <tr>
-                            <th>Product</th>
-                            <th>Qty</th>
-                            <th>Unit Price (₹)</th>
-                            <th>Disc %</th>
-                            <th>GST %</th>
-                            <th>Line Amount (₹)</th>
+                            <th>Product Selection</th>
+                            <th style={{ width: '80px' }}>Qty</th>
+                            <th style={{ width: '110px' }}>Price (₹)</th>
+                            <th style={{ width: '80px' }}>Disc %</th>
+                            <th style={{ width: '80px' }}>GST %</th>
+                            <th style={{ width: '120px' }}>Line Total</th>
+                            <th style={{ width: '45px' }}></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -432,7 +581,19 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                             return (
                               <tr key={idx}>
                                 <td>
-                                  <strong>{it.product_name || `Product ID ${it.product_id}`}</strong>
+                                  <select
+                                    className="form-control"
+                                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
+                                    value={it.product_id}
+                                    onChange={(e) => handleProductChange(idx, e.target.value)}
+                                    required
+                                  >
+                                    {products.map((p) => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.product_code}: {p.product_name} ({p.unit})
+                                      </option>
+                                    ))}
+                                  </select>
                                 </td>
                                 <td>
                                   <input
@@ -449,7 +610,7 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                                   <input
                                     type="number"
                                     className="form-control"
-                                    style={{ width: '90px', padding: '0.3rem' }}
+                                    style={{ width: '95px', padding: '0.3rem' }}
                                     value={it.unit_price}
                                     min="0"
                                     step="0.01"
@@ -461,11 +622,11 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                                   <input
                                     type="number"
                                     className="form-control"
-                                    style={{ width: '65px', padding: '0.3rem' }}
+                                    style={{ width: '70px', padding: '0.3rem' }}
                                     value={it.discount_percent}
                                     min="0"
                                     max="100"
-                                    step="0.1"
+                                    step="0.5"
                                     onChange={(e) => handleItemFieldChange(idx, 'discount_percent', e.target.value)}
                                   />
                                 </td>
@@ -473,11 +634,11 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                                   <input
                                     type="number"
                                     className="form-control"
-                                    style={{ width: '65px', padding: '0.3rem' }}
+                                    style={{ width: '70px', padding: '0.3rem' }}
                                     value={it.gst_percent}
                                     min="0"
                                     max="100"
-                                    step="0.1"
+                                    step="1"
                                     onChange={(e) => handleItemFieldChange(idx, 'gst_percent', e.target.value)}
                                   />
                                 </td>
@@ -485,6 +646,17 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                                   <strong style={{ color: '#1e40af' }}>
                                     ₹{lineAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </strong>
+                                </td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="btn-icon btn-icon-danger"
+                                    onClick={() => handleRemoveItemRow(idx)}
+                                    disabled={items.length <= 1}
+                                    title="Remove row"
+                                  >
+                                    <Trash2 size={15} color={items.length <= 1 ? '#94a3b8' : '#ef4444'} />
+                                  </button>
                                 </td>
                               </tr>
                             );
@@ -500,15 +672,15 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                   background: '#eff6ff',
                   border: '1px solid #bfdbfe',
                   borderRadius: '8px',
-                  padding: '1rem 1.5rem',
+                  padding: '0.85rem 1.25rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}>
                   <div>
-                    <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 600 }}>Estimated Grand Total:</span>
+                    <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 700 }}>Computed Grand Total:</span>
                     <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      Calculated from itemized base, trade discounts, and statutory taxes.
+                      Calculated from base rate, trade discounts, and statutory taxes.
                     </p>
                   </div>
                   <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e3a8a' }}>
@@ -518,11 +690,11 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={items.length === 0}>
-                  Save & Generate Quotation
+                <button type="submit" className="btn btn-primary" disabled={submitting || items.length === 0}>
+                  {submitting ? 'Generating Quotation...' : 'Save & Generate Quotation'}
                 </button>
               </div>
             </form>
@@ -543,7 +715,7 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
                   {activeQuotation.status}
                 </span>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setActiveQuotation(null)}>
+              <button className="btn-icon" onClick={() => setActiveQuotation(null)} title="Close modal">
                 <X size={16} />
               </button>
             </div>
@@ -604,6 +776,27 @@ export default function QuotationsPage({ preselectedEnquiryId, onNavigateToSales
             </div>
 
             <div className="modal-footer">
+              {/* Printable Download Action in Modal */}
+              <button
+                className="btn btn-secondary"
+                onClick={() => handlePrintQuotation(activeQuotation)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                title="Print or Save as PDF directly without leaving the page"
+              >
+                <Printer size={15} />
+                Print / Save PDF
+              </button>
+
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleDownloadQuotation(activeQuotation)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                title="Download commercial quotation file"
+              >
+                <Download size={15} />
+                Download HTML
+              </button>
+
               {activeQuotation.status === 'ACCEPTED' && !activeQuotation.order_number && (
                 <button
                   className="btn btn-primary"

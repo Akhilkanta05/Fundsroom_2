@@ -175,7 +175,7 @@ export default function EnquiriesPage({ onNavigateToQuotation }) {
                 <th>Items</th>
                 <th>Units Demanded</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th style={{ minWidth: '160px', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -208,8 +208,8 @@ export default function EnquiriesPage({ onNavigateToQuotation }) {
                       {enq.status}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div className="table-actions">
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => viewEnquiryDetails(enq.id)}
@@ -241,7 +241,7 @@ export default function EnquiriesPage({ onNavigateToQuotation }) {
           <div className="modal-content" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Log New Customer Enquiry</h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)}>
+              <button className="btn-icon" onClick={() => setShowModal(false)} title="Close modal">
                 <X size={16} />
               </button>
             </div>
@@ -405,12 +405,12 @@ export default function EnquiriesPage({ onNavigateToQuotation }) {
 
                       <button
                         type="button"
-                        className="btn btn-secondary btn-sm"
+                        className="btn-icon btn-icon-danger"
                         onClick={() => handleRemoveItem(idx)}
                         disabled={items.length <= 1}
-                        style={{ padding: '0.5rem' }}
+                        title="Remove row"
                       >
-                        <Trash2 size={15} color="#ef4444" />
+                        <Trash2 size={15} color={items.length <= 1 ? '#94a3b8' : '#ef4444'} />
                       </button>
                     </div>
                   ))}
@@ -443,7 +443,7 @@ export default function EnquiriesPage({ onNavigateToQuotation }) {
                   {activeEnquiry.status}
                 </span>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setActiveEnquiry(null)}>
+              <button className="btn-icon" onClick={() => setActiveEnquiry(null)} title="Close modal">
                 <X size={16} />
               </button>
             </div>

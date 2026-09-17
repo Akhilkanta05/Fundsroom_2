@@ -58,7 +58,7 @@ export default function InventoryModal({ isOpen, onClose }) {
             <Boxes size={22} color="#2563eb" />
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Live Inventory Availability</h3>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+          <button className="btn-icon" onClick={onClose} title="Close modal">
             <X size={16} />
           </button>
         </div>

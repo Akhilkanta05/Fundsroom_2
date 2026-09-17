@@ -115,3 +115,34 @@ Product 1: Physical=90, Reserved=30, Avail=60
 - **Swagger Documentation**: `http://localhost:5000/api-docs`
 - **Admin Login**: `admin@erp.com` / `Admin@123`
 - **Sales User Login**: `sales@erp.com` / `Sales@123`
+
+---
+
+## Recent Refinements: UI Button Polish & Downloadable Quotations
+
+1. **Button Glitch Fixes Across All Pages**:
+   - **Prevented Text Wrapping in Buttons**: Added `white-space: nowrap;` and `line-height: 1.25` to the `.btn` base class, preventing button text (e.g. "Convert to SO", "Confirm & Reserve", "Download") from awkwardly wrapping onto multiple lines when table space is restricted.
+   - **Fixed Icon Warping**: Added `flex-shrink: 0;` to Lucide SVG icons within `.btn` elements to guarantee crisp rendering without oval distortion or collapse.
+   - **Table Action Column Stabilization**: Set explicit `minWidth` (`270px` for Quotations, `240px` for Sales Orders) and `white-space: nowrap` on table action headers and cells, wrapped in `.table-actions` flex containers to eliminate ragged, multi-tier row height jumps.
+   - **Invalid JSX Style Props**: Replaced legacy string styles `<th style="width: 75px;">` in `QuotationsPage.jsx` with valid React style objects `style={{ width: '80px' }}`, clearing React console warnings and layout recalculation glitches.
+   - **Symmetrical Close & Trash Buttons**: Introduced `.btn-icon` and `.btn-icon-danger` (32x32px square) for all modal close (`X`) buttons and item deletion (`Trash2`) buttons, eliminating stretched rectangular pill buttons and keeping disabled trash icons appropriately muted.
+   - **Tactile Click Feedback**: Added `:active:not(:disabled)` micro-interactions (`transform: translateY(1px) scale(0.98)`) and `:focus-visible` outline rings for a responsive, modern desktop feel.
+
+2. **Commercial Quotation Download (PDF / Print-Ready)**:
+   - Built [`frontend/src/utils/quotationDocument.js`](file:///c:/Users/kanta/OneDrive/Documents/projects/projects/fundsroom%202/frontend/src/utils/quotationDocument.js) supporting 1-click generation of formatted, branded commercial quotations directly from table action bars and modal views with itemized GST breakdown, validity terms, and browser PDF printing.
+
+3. **Blank / White Screen Resolution on Action Buttons**:
+   - **Root Cause Identified**: Clicking the **"Download"** action button invoked `window.open('', '_blank')` followed by async document writing. In modern Chrome, calling `window.open` after an asynchronous fetch or with popup blockers resulted in a detached, uninitialized blank tab (URL `localhost:3000`, title `localhost`), shifting focus away from the main application to a blank white screen.
+   - **Zero-Window Direct Download**: Replaced `window.open` with a direct `<a download>` Blob download trigger in `quotationDocument.js`. The file `Quotation_QT-XXXX-XXXX.html` now downloads instantly to the user's Downloads folder without opening any blank tabs.
+   - **In-Page Print / PDF Trigger**: Added `printQuotationDocument()` utilizing an invisible temporary `iframe` to invoke the native browser Print dialog directly from the active page without leaving or navigating away.
+   - **React Error Boundary**: Implemented and wrapped the app in [`frontend/src/components/ErrorBoundary.jsx`](file:///c:/Users/kanta/OneDrive/Documents/projects/projects/fundsroom%202/frontend/src/components/ErrorBoundary.jsx) to intercept any unhandled runtime exceptions and display a recovery card rather than letting React unmount into a blank screen.
+   - **Modal Backdrop Refinement**: Softened modal backdrop (`rgba(15, 23, 42, 0.45)`) and added smooth entrance scaling animations in `index.css`.
+
+4. **Dispatch Log & Delivery Challan Synchronization**:
+   - **Fixed Undefined API Method**: Resolved `api.apiRequest is not a function` bug in [`frontend/src/pages/DispatchesPage.jsx`](file:///c:/Users/kanta/OneDrive/Documents/projects/projects/fundsroom%202/frontend/src/pages/DispatchesPage.jsx) by adding `getDispatch: (id) => apiRequest('/dispatches/' + id)` to [`frontend/src/api/client.js`](file:///c:/Users/kanta/OneDrive/Documents/projects/projects/fundsroom%202/frontend/src/api/client.js), enabling smooth line-item inspections for all consignments.
+   - **Official Delivery Challan Generator**: Built [`frontend/src/utils/deliveryChallanDocument.js`](file:///c:/Users/kanta/OneDrive/Documents/projects/projects/fundsroom%202/frontend/src/utils/deliveryChallanDocument.js) featuring branded company headers, vehicle number, driver name, customer delivery destination, line item breakdown, and gate/consignee signature blocks, with both 1-click HTML download and browser Print/PDF export.
+   - **Sales Orders to Dispatch Log Syncing**: Added a **Challan** action button on dispatched sales orders and linked the dispatch confirmation dialog so users can immediately jump from a newly confirmed dispatch to its consignment record in the Dispatch Log.
+   - **Live Search & Metrics**: Added dynamic real-time search filtering (by Consignment #, Sales Order #, Customer, Vehicle, Driver) and KPI metrics (Total Consignments, Shipped Units, Transport Fleets) in `DispatchesPage.jsx`.
+
+
+

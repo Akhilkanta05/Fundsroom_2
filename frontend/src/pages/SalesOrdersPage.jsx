@@ -17,7 +17,7 @@ import {
   GitFork
 } from 'lucide-react';
 
-export default function SalesOrdersPage({ targetOrderId }) {
+export default function SalesOrdersPage({ targetOrderId, onNavigateToDispatch }) {
   const { isAdmin, user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -107,11 +107,15 @@ export default function SalesOrdersPage({ targetOrderId }) {
     setDispatchLoading(true);
     try {
       const res = await api.dispatchSalesOrder(dispatchModalOrder.id, dispatchForm);
-      alert(`Success! Dispatched with tracking #${res.dispatch.dispatch_number}. Physical & Reserved stock updated.`);
       setDispatchModalOrder(null);
       loadData();
       if (activeOrder && activeOrder.id === dispatchModalOrder.id) {
         viewOrderDetails(dispatchModalOrder.id);
+      }
+      if (window.confirm(`Consignment #${res.dispatch.dispatch_number} generated successfully!\n\nPhysical and reserved inventory have been updated.\n\nWould you like to open the Delivery Challan in the Dispatch Log now?`)) {
+        if (onNavigateToDispatch) {
+          onNavigateToDispatch(res.dispatch.id);
+        }
       }
     } catch (err) {
       alert('Dispatch Failed: ' + err.message);
@@ -249,7 +253,7 @@ export default function SalesOrdersPage({ targetOrderId }) {
                 <th>Order Date</th>
                 <th>Status</th>
                 <th>Dispatch Tracking</th>
-                <th>Actions</th>
+                <th style={{ minWidth: '240px', whiteSpace: 'nowrap' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -299,8 +303,8 @@ export default function SalesOrdersPage({ targetOrderId }) {
                       <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Pending Dispatch</span>
                     )}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div className="table-actions">
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => viewOrderDetails(so.id)}
@@ -346,6 +350,25 @@ export default function SalesOrdersPage({ targetOrderId }) {
                           </button>
                         </>
                       )}
+
+                      {/* VIEW DELIVERY CHALLAN */}
+                      {so.status === 'DISPATCHED' && so.dispatch_id && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            if (onNavigateToDispatch) {
+                              onNavigateToDispatch(so.dispatch_id);
+                            } else {
+                              alert(`Consignment #${so.dispatch_number} on vehicle ${so.vehicle_number}`);
+                            }
+                          }}
+                          title="View Delivery Challan in Dispatch Log"
+                          style={{ color: '#065f46', borderColor: '#bbf7d0' }}
+                        >
+                          <Truck size={13} />
+                          Challan
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -368,7 +391,7 @@ export default function SalesOrdersPage({ targetOrderId }) {
                   {activeOrder.status}
                 </span>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setActiveOrder(null)}>
+              <button className="btn-icon" onClick={() => setActiveOrder(null)} title="Close modal">
                 <X size={16} />
               </button>
             </div>
@@ -514,6 +537,24 @@ export default function SalesOrdersPage({ targetOrderId }) {
                 </button>
               )}
 
+              {activeOrder.status === 'DISPATCHED' && activeOrder.dispatch_id && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    const dispId = activeOrder.dispatch_id;
+                    setActiveOrder(null);
+                    if (onNavigateToDispatch) {
+                      onNavigateToDispatch(dispId);
+                    }
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#065f46', borderColor: '#bbf7d0' }}
+                  title="Open Delivery Challan in Dispatches Tab"
+                >
+                  <Truck size={15} />
+                  Delivery Challan ({activeOrder.dispatch_number})
+                </button>
+              )}
+
               <button className="btn btn-secondary" onClick={() => setActiveOrder(null)}>
                 Close
               </button>
@@ -533,7 +574,7 @@ export default function SalesOrdersPage({ targetOrderId }) {
                   Dispatch Order: {dispatchModalOrder.order_number}
                 </h3>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setDispatchModalOrder(null)}>
+              <button className="btn-icon" onClick={() => setDispatchModalOrder(null)} title="Close modal">
                 <X size={16} />
               </button>
             </div>

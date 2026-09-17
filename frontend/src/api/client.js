@@ -71,6 +71,10 @@ export const api = {
   dispatchSalesOrder: (id, data) => apiRequest(`/sales-orders/${id}/dispatch`, { method: 'POST', body: JSON.stringify(data) }),
   cancelSalesOrder: (id) => apiRequest(`/sales-orders/${id}/cancel`, { method: 'POST' }),
 
-  // Dispatches list
+  // Dispatches list & details
   getDispatches: () => apiRequest('/dispatches'),
+  getDispatch: (id) => apiRequest(`/dispatches/${id}`),
+
+  // Fallback direct request
+  apiRequest,
 };
